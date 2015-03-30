@@ -1,10 +1,7 @@
 crypto = require('crypto')
-resty_random = require('resty.random')
-resty_string = require('resty.string')
 encode_base64 = ngx and ngx.encode_base64 or require('mime').b64
 oauth_escape = (unescaped) ->
-  unescaped:gsub('([^A-Za-z0-9%-%.%_%~])', -> (c) string.format("%%%02X", string.byte(c)))
-
+  string.gsub(unescaped, '([^A-Za-z0-9%-%.%_%~])', (c) -> string.format("%%%02X", string.byte(c)))
 
 -- a request which may be signed with OAuth, generally in order to apply the signature to an outgoing request 
 -- in the Authorization header.
@@ -60,7 +57,7 @@ class SignableRequest
       required['consumer_key'] = true
     missing = [k for k, _ in pairs(required) when not @attributes[k]]
     error("missing required attributes: #{table.concat(missing, ', ')}") if #missing > 0
-    extra = [k for k, _ in pairs(@attributes) when not (required[k] or SignedRequest.PROTOCOL_PARAM_KEYS[k] or SignedRequest.RECOGNIZED_KEYS[k])]
+    extra = [k for k, _ in pairs(@attributes) when not (required[k] or SignableRequest.PROTOCOL_PARAM_KEYS[k] or SignableRequest.RECOGNIZED_KEYS[k])]
     if #extra > 0
       error("received unrecognized attributes: #{table.concat(extra, ', ')}. required = #{table.concat([k for k, _ in pairs(required)], ',')}")
 
@@ -71,7 +68,7 @@ class SignableRequest
         error("authorization must be a table")
 
       -- if authorization is specified, protocol params should not be specified in the regular attributes 
-      given_protocol_params = {k, v for k, v in ipairs(@attributes) when SignedRequest.PROTOCOL_PARAM_KEYS[k] and v}
+      given_protocol_params = {k, v for k, v in ipairs(@attributes) when SignableRequest.PROTOCOL_PARAM_KEYS[k] and v}
       if #given_protocol_params > 0
         error("an existing authorization was given, but protocol parameters were also " ..
           "given. protocol parameters should not be specified when verifying an existing authorization. " ..
@@ -82,9 +79,9 @@ class SignableRequest
         'version': '1.0',
       }
       if @attributes['signature_method'] != 'PLAINTEXT'
-        defaults['nonce'] = resty_string.to_hex(resty_random.bytes(16))
+        defaults['nonce'] = table.concat([string.format("%02X", math.random(256) - 1) for i=1,16])
         defaults['timestamp'] = tostring(os.time())
-      @attributes['authorization'] = {"oauth_#{key}", @attributes[key] or defaults[key] for key, _ in pairs(SignedRequest.PROTOCOL_PARAM_KEYS)}
+      @attributes['authorization'] = {"oauth_#{key}", @attributes[key] or defaults[key] for key, _ in pairs(SignableRequest.PROTOCOL_PARAM_KEYS)}
 
       @attributes['authorization']['realm'] = @attributes['realm'] if @attributes['realm'] != nil
 
@@ -100,7 +97,7 @@ class SignableRequest
   --
   -- @return [String] oauth signature
   signature: =>
-    sigmethod = SignedRequest.SIGNATURE_METHODS[@signature_method()] or error("invalid signature method: #{@signature_method()}")
+    sigmethod = SignableRequest.SIGNATURE_METHODS[@signature_method()] or error("invalid signature method: #{@signature_method()}")
     @[sigmethod](@)
 
   -- the oauth_body_hash calculated for this request, if applicable, per the OAuth Request Body Hash 
@@ -108,7 +105,7 @@ class SignableRequest
   --
   -- @return [String, nil] oauth body hash
   body_hash: =>
-    hashmethod = SignedRequest.BODY_HASH_METHODS[@signature_method()]
+    hashmethod = SignableRequest.BODY_HASH_METHODS[@signature_method()]
     @[hashmethod](@) if hashmethod
 
   -- protocol params for this request as described in section 3.4.1.3 
@@ -154,14 +151,19 @@ class SignableRequest
   --
   -- @return [String]
   base_string_uri: =>
-    @attributes['uri'] -- TODO
-    -- Addressable::URI.parse(@attributes['uri'].to_s).tap do |uri|
-    --   uri.scheme = uri.scheme.downcase if uri.scheme
-    --   uri.host = uri.host.downcase if uri.host
-    --   uri.normalize!
-    --   uri.fragment = nil
-    --   uri.query = nil
-    -- end.to_s
+    required = {k, true for k in *{'scheme', 'host', 'port', 'request_uri'}}
+    unless type(@attributes['uri']) == 'table'
+      error("uri must be given as a table with keys: #{table.concat([k for k, _ in pairs(required)], ', ')}")
+    uri = @attributes['uri']
+    missing = [k for k, _ in pairs(required) when not uri[k]]
+    error("uri table is missing required keys: #{table.concat(missing, ', ')}") if #missing > 0
+    scheme = uri['scheme']\lower()
+    host = uri['host']\lower()
+    default_ports = {https: '443', http: '80'}
+    port = if tostring(uri['port']) == default_ports[scheme] then '' else ":#{uri['port']}"
+    query_start = uri['request_uri']\find('?', 1, true) -- nil if not found, path will be the whole request_uri
+    path = uri['request_uri']\sub(1, query_start)
+    "#{scheme}://#{host}#{port}#{path}"
 
   -- section 3.4.1.1
   --
@@ -182,9 +184,9 @@ class SignableRequest
   -- @return [Array<Array<String> (size 2)>]
   normalized_request_params: =>
     normalized_request_params = {}
-    normalized_request_params[#normalized_request_params] = e for e in *@query_params()
-    normalized_request_params[#normalized_request_params] = e for e in *@protocol_params() when not (e[1] == 'realm' or e[1] == 'oauth_signature')
-    normalized_request_params[#normalized_request_params] = e for e in *@entity_params()
+    table.insert(normalized_request_params, e) for e in *@query_params()
+    table.insert(normalized_request_params, e) for e in *@protocol_params() when not (e[1] == 'realm' or e[1] == 'oauth_signature')
+    table.insert(normalized_request_params, e) for e in *@entity_params()
     normalized_request_params
 
   -- section 3.4.1.3.1
@@ -194,9 +196,12 @@ class SignableRequest
   --
   -- @return [Array<Array<String, nil> (size 2)>]
   query_params: =>
-    --parse_form_encoded(URI.parse(@attributes['uri'].to_s).query || '')
-    query = '' -- TODO
-    @parse_form_encoded(query)
+    request_uri = @attributes['uri']['request_uri']
+    query_start = request_uri\find('?', 1, true)
+    if query_start
+      @parse_form_encoded(request_uri\sub(query_start + 1))
+    else
+      {}
 
   -- section 3.4.1.3.1
   --
@@ -214,18 +219,33 @@ class SignableRequest
   --
   -- @return [Array<Array<String, nil> (size 2)>]
   parse_form_encoded: (data) =>
-    --data.split(/[&;]/).map do |pair|
-    --  key, value = pair.split('=', 2).map { |v| CGI::unescape(v) }
-    --  [key, value] unless [nil, ''].include?(key)
-    --end.compact
-    {} -- TODO
+    parsed = {}
+    pos = 1
+    data_len = string.len(data)
+    seppos = string.find(data, '[&;]', pos) or data_len + 1
+    while pos <= data_len and seppos
+      if seppos > pos -- if seppos == pos then this pair would just be empty string; skip this
+        pair_s = string.sub(data, pos, seppos - 1)
+        pair = do
+          if eqpos = string.find(pair_s, '=', 1, true)
+            if eqpos == 1 -- the key part would be empty; skip this
+              nil
+            else
+              {string.sub(pair_s, 1, eqpos - 1), string.sub(pair_s, eqpos + 1)}
+          else
+            {pair_s}
+        if pair
+          table.insert(parsed, [string.gsub(string.gsub(v, "+", " "), "%%(%x%x)", (h) -> string.char(tonumber(h, 16))) for v in *pair])
+      pos = seppos + 1
+      seppos = string.find(data, '[&;]', pos) or data_len + 1
+    parsed
 
   -- string of protocol params including signature, sorted 
   --
   -- @return [String]
   normalized_protocol_params_string: =>
     sorted_params = @sort_params(@signed_protocol_params())
-    escaped_params = [ [[#{oauth_escape(k)}="#{oauth_escape(v)}"]] for k, v in pairs(sorted_params)]
+    escaped_params = ["#{oauth_escape(k)}=\"#{oauth_escape(v)}\"" for k, v in pairs(sorted_params)]
     table.concat(escaped_params, ', ')
 
   -- reads the request body, be it String or IO 
@@ -246,7 +266,7 @@ class SignableRequest
   --
   -- @return [Boolean]
   will_hash_body: =>
-    SignedRequest.BODY_HASH_METHODS[signature_method] and @is_form_encoded() and @attributes['hash_body?'] != false
+    SignableRequest.BODY_HASH_METHODS[signature_method] and @is_form_encoded() and @attributes['hash_body?'] != false
 
   -- signature method 
   --
@@ -266,7 +286,6 @@ class SignableRequest
   hmac_sha1_signature: =>
     -- hmac secret is same as plaintext signature 
     secret = @plaintext_signature()
-    --Base64.encode64(OpenSSL::HMAC.digest(OpenSSL::Digest::SHA1.new, secret, signature_base)).gsub(/\n/, '')
     encode_base64(crypto.hmac.digest('sha1', @signature_base(), secret, true))
 
   -- signature, with method plaintext. section 3.4.4
@@ -293,4 +312,4 @@ class SignableRequest
     )
     return params
 
-SignedRequest
+SignableRequest
