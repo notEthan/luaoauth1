@@ -81,7 +81,10 @@ class SignableRequest
       if @attributes['signature_method'] != 'PLAINTEXT'
         defaults['nonce'] = table.concat([string.format("%02X", math.random(256) - 1) for i=1,16])
         defaults['timestamp'] = tostring(os.time())
-      @attributes['authorization'] = {"oauth_#{key}", @attributes[key] or defaults[key] for key, _ in pairs(SignableRequest.PROTOCOL_PARAM_KEYS)}
+      @attributes['authorization'] = {}
+      for key, _ in pairs(SignableRequest.PROTOCOL_PARAM_KEYS)
+        @attributes['authorization']["oauth_#{key}"] = do
+          @attributes[key] or (if @attributes[key] == false then nil else defaults[key])
 
       @attributes['authorization']['realm'] = @attributes['realm'] if @attributes['realm'] != nil
 
@@ -161,8 +164,8 @@ class SignableRequest
     host = uri['host']\lower()
     default_ports = {https: '443', http: '80'}
     port = if tostring(uri['port']) == default_ports[scheme] then '' else ":#{uri['port']}"
-    query_start = uri['request_uri']\find('?', 1, true) -- nil if not found, path will be the whole request_uri
-    path = uri['request_uri']\sub(1, query_start)
+    query_start = uri['request_uri']\find('?', 1, true)
+    path = uri['request_uri']\sub(1, if query_start then query_start - 1 else nil)
     "#{scheme}://#{host}#{port}#{path}"
 
   -- section 3.4.1.1
@@ -175,9 +178,9 @@ class SignableRequest
   --
   -- @return [String]
   normalized_request_params_string: =>
-    escaped = [ [oauth_escape(x) for x in param] for param in *@normalized_request_params()]
+    escaped = [ [oauth_escape(x) for x in *param] for param in *@normalized_request_params()]
     @sort_params(escaped)
-    table.concat([table.concat(e, '=') for e in ipairs(escaped)], '&')
+    table.concat([table.concat(e, '=') for i, e in ipairs(escaped)], '&')
 
   -- section 3.4.1.3
   --
@@ -185,7 +188,7 @@ class SignableRequest
   normalized_request_params: =>
     normalized_request_params = {}
     table.insert(normalized_request_params, e) for e in *@query_params()
-    table.insert(normalized_request_params, e) for e in *@protocol_params() when not (e[1] == 'realm' or e[1] == 'oauth_signature')
+    table.insert(normalized_request_params, {k, v}) for k, v in pairs(@protocol_params()) when not (k == 'realm' or k == 'oauth_signature')
     table.insert(normalized_request_params, e) for e in *@entity_params()
     normalized_request_params
 
@@ -211,7 +214,7 @@ class SignableRequest
   -- @return [Array<Array<String, nil> (size 2)>]
   entity_params: =>
     if @is_form_encoded()
-      @parse_form_encoded(@body)
+      @parse_form_encoded(@body())
     else
       {}
 
@@ -220,6 +223,7 @@ class SignableRequest
   -- @return [Array<Array<String, nil> (size 2)>]
   parse_form_encoded: (data) =>
     parsed = {}
+    return parsed unless data
     pos = 1
     data_len = string.len(data)
     seppos = string.find(data, '[&;]', pos) or data_len + 1
@@ -233,7 +237,7 @@ class SignableRequest
             else
               {string.sub(pair_s, 1, eqpos - 1), string.sub(pair_s, eqpos + 1)}
           else
-            {pair_s}
+            {pair_s, ''}
         if pair
           table.insert(parsed, [string.gsub(string.gsub(v, "+", " "), "%%(%x%x)", (h) -> string.char(tonumber(h, 16))) for v in *pair])
       pos = seppos + 1
@@ -266,7 +270,7 @@ class SignableRequest
   --
   -- @return [Boolean]
   will_hash_body: =>
-    SignableRequest.BODY_HASH_METHODS[signature_method] and @is_form_encoded() and @attributes['hash_body?'] != false
+    SignableRequest.BODY_HASH_METHODS[@signature_method()] and not @is_form_encoded() and @attributes['hash_body'] != false
 
   -- signature method 
   --
@@ -292,7 +296,7 @@ class SignableRequest
   --
   -- @return [String]
   plaintext_signature: =>
-    table.concat([oauth_escape(@attributes[k]) for k in *{'consumer_secret', 'token_secret'} when @attributes[k]])
+    table.concat([oauth_escape(@attributes[k] or '') for k in *{'consumer_secret', 'token_secret'}], '&')
 
   -- body hash, with a signature method which uses SHA1. oauth request body hash section 3.2
   --
