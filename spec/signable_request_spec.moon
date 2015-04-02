@@ -5,12 +5,17 @@ merge = (a, b) ->
   out[k] = v for k, v in pairs(a)
   out[k] = v for k, v in pairs(b)
   out
+has_key = (table, testkey) ->
+  out = false
+  out = true for key, _ in pairs(table) when testkey == key
+  out
 
 describe 'signable_request', ->
   base_example_initialize_attrs = ->
     {
       request_method: 'get',
-      uri: 'http://example.com',
+      --uri: 'http://example.com',
+      uri: {scheme: 'http', host: 'example.com', port: 80, request_uri: '/'},
       media_type: 'text/plain',
       body: 'hi there',
     }
@@ -51,64 +56,54 @@ Lw03eHTNQghS0A==
       describe 'with any signature method', ->
         for signature_method, _ in pairs(SignableRequest.SIGNATURE_METHODS)
           it "defaults to version 1.0 with #{signature_method}", ->
-            request = example_request({signature_method: signature_method)
-            assert_equal('1.0', request.protocol_params['oauth_version'])
+            request = example_request({signature_method: signature_method})
+            assert.same('1.0', request\protocol_params()['oauth_version'])
           it "lets you omit version if you really want to with #{signature_method}", ->
-            request = example_request({version = nil, signature_method = signature_method})
-            assert(!request.protocol_params.key?('oauth_version'))
+            request = example_request({version: false, signature_method: signature_method})
+            assert.same nil, request\protocol_params()['oauth_version']
       describe 'not plaintext', ->
         it 'generates nonces', ->
-          nonces = 2.times.map do
-            example_request({signature_method: 'HMAC-SHA1'}).protocol_params['oauth_nonce']
-          assert_equal(2, nonces.uniq.compact.size)
+          nonce1 = example_request({signature_method: 'HMAC-SHA1'})\protocol_params()['oauth_nonce']
+          nonce2 = example_request({signature_method: 'HMAC-SHA1'})\protocol_params()['oauth_nonce']
+          assert.truthy nonce1
+          assert.truthy nonce2
+          assert.is_not.same nonce1, nonce2
         it 'generates timestamp', ->
-          Timecop.freeze Time.at 1391021695
+          time = os.time()
           request = example_request({signature_method: 'HMAC-SHA1'})
-          assert_equal 1391021695.to_s, request.protocol_params['oauth_timestamp']
+          assert.same tostring(time), request\protocol_params()['oauth_timestamp']
       describe 'plaintext', ->
         it 'does not generate nonces', ->
           request = example_request({signature_method: 'PLAINTEXT'})
-          assert(!request.protocol_params.key?('oauth_nonce'))
+          assert.is_false has_key(request\protocol_params(), 'oauth_nonce')
         it 'does not generate timestamp', ->
           request = example_request({signature_method: 'PLAINTEXT'})
-          assert(!request.protocol_params.key?('oauth_timestapm'))
-
-    it 'accepts string and symbol', ->
-      initialize_attr_variants = [
-        -- by string
-        example_initialize_attrs.map { |k,v| {k.to_s => v} }.inject({}, &:update),
-        -- by symbol
-        example_initialize_attrs.map { |k,v| {k.to_sym => v} }.inject({}, &:update),
-        -- random mix
-        example_initialize_attrs.map { |k,v| {rand(2) == 0 ? k.to_s : k.to_sym => v} }.inject({}, &:update),
-      ]
-      authorizations = initialize_attr_variants.map do |attrs|
-        OAuthenticator::SignableRequest.new(attrs).authorization
-      assert_equal(1, authorizations.uniq.size)
+          assert.is_false(has_key(request\protocol_params(), 'oauth_timestamp'))
 
     it 'checks type', ->
-      assert_raises(TypeError) { OAuthenticator::SignableRequest.new("hello!") }
+      assert.has_error, -> SignableRequest("hello!")
 
     it 'checks authorization type', ->
-      assert_raises(TypeError) { example_request({authorization: "hello!"}) }
+      assert.has_error, -> example_request({authorization: "hello!"})
 
     it 'does not allow protocol parameters to be specified when authorization is specified', ->
-      OAuthenticator::SignableRequest::PROTOCOL_PARAM_KEYS.map do |key|
-        assert_raises(ArgumentError) do
-          example_signed_request({}, key => 'val')
+      for key, _ in pairs(SignableRequest.PROTOCOL_PARAM_KEYS)
+        assert.has_error, ->
+          example_signed_request({}, [key]: 'val')
 
     describe 'required attributes', ->
       it 'complains about missing required params', ->
-        err = assert_raises(ArgumentError) { OAuthenticator::SignableRequest.new({}) }
-        %w(request_method uri media_type body consumer_key signature_method).each do |required|
-          assert_match /#{required}/, err.message
+        _, err = pcall -> SignableRequest({})
+        for required in *{'request_method', 'uri', 'media_type', 'body', 'consumer_key', 'signature_method'}
+          assert.is_truthy string.find(err, required, 1, true)
 
   describe 'the example in 3.1', ->
     -- a request with attributes from the oauth spec
-    def spec_request(attributes={})
+    spec_request = (attributes={}) ->
       example_request({
         request_method: 'POST',
-        uri: 'http://example.com/request?b5=%3D%253D&a3=a&c%40=&a2=r%20b',
+        --uri: 'http://example.com/request?b5=%3D%253D&a3=a&c%40=&a2=r%20b',
+        uri: {scheme: 'http', host: 'example.com', port: 80, request_uri: '/request?b5=%3D%253D&a3=a&c%40=&a2=r%20b'},
         media_type: 'application/x-www-form-urlencoded',
         body: 'c2&a3=2+q',
         consumer_key: '9djdj82h48djs9d2',
@@ -118,27 +113,27 @@ Lw03eHTNQghS0A==
         signature_method: 'HMAC-SHA1',
         timestamp: '137131201',
         nonce: '7d8f3e4a',
-        version: nil,
+        version: false,
         realm: "Example",
       })
 
     it 'has the same signature base string', ->
       spec_signature_base = (
-        "POST&http%3A%2F%2Fexample.com%2Frequest&a2%3Dr%2520b%26a3%3D2%2520q" +
-        "%26a3%3Da%26b5%3D%253D%25253D%26c%2540%3D%26c2%3D%26oauth_consumer_" +
-        "key%3D9djdj82h48djs9d2%26oauth_nonce%3D7d8f3e4a%26oauth_signature_m" +
-        "ethod%3DHMAC-SHA1%26oauth_timestamp%3D137131201%26oauth_token%3Dkkk" +
+        "POST&http%3A%2F%2Fexample.com%2Frequest&a2%3Dr%2520b%26a3%3D2%2520q" ..
+        "%26a3%3Da%26b5%3D%253D%25253D%26c%2540%3D%26c2%3D%26oauth_consumer_" ..
+        "key%3D9djdj82h48djs9d2%26oauth_nonce%3D7d8f3e4a%26oauth_signature_m" ..
+        "ethod%3DHMAC-SHA1%26oauth_timestamp%3D137131201%26oauth_token%3Dkkk" ..
         "9d7dh3k39sjv7"
       )
-      assert_equal(spec_signature_base, spec_request.send(:signature_base))
+      assert.same(spec_signature_base, spec_request()\signature_base())
 
     it 'has the same normalized parameters', ->
       spec_normalized_request_params_string = (
-        "a2=r%20b&a3=2%20q&a3=a&b5=%3D%253D&c%40=&c2=&oauth_consumer_key=9dj" +
-        "dj82h48djs9d2&oauth_nonce=7d8f3e4a&oauth_signature_method=HMAC-SHA1" +
+        "a2=r%20b&a3=2%20q&a3=a&b5=%3D%253D&c%40=&c2=&oauth_consumer_key=9dj" ..
+        "dj82h48djs9d2&oauth_nonce=7d8f3e4a&oauth_signature_method=HMAC-SHA1" ..
         "&oauth_timestamp=137131201&oauth_token=kkk9d7dh3k39sjv7"
       )
-      assert_equal(spec_normalized_request_params_string, spec_request.send(:normalized_request_params_string))
+      assert.same(spec_normalized_request_params_string, spec_request()\normalized_request_params_string())
 
     it 'calculates authorization the same', ->
       -- a keen observer may note that the signature is different than the one in the actual spec. the spec is
