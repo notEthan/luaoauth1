@@ -163,8 +163,11 @@ class SignableRequest
     host = uri['host']\lower()
     default_ports = {https: '443', http: '80'}
     port = if tostring(uri['port']) == default_ports[scheme] then '' else ":#{uri['port']}"
-    query_start = uri['request_uri']\find('?', 1, true)
-    path = uri['request_uri']\sub(1, if query_start then query_start - 1 else nil)
+    request_uri = uri['request_uri']
+    fragment_start = request_uri\find('#', 1, true)
+    request_uri = request_uri\sub(1, fragment_start - 1) if fragment_start
+    query_start = request_uri\find('?', 1, true)
+    path = request_uri\sub(1, if query_start then query_start - 1 else nil)
     "#{scheme}://#{host}#{port}#{path}"
 
   -- section 3.4.1.1
