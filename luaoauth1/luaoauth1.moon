@@ -24,7 +24,7 @@ luaoauth1 = {
     authorization_collect = lpeg.Cf(lpeg.Ct('') * authorization_match, (t, k, v) ->
       k = luaoauth1.oauth_unescape(k)
       t[k] = {} if not t[k]
-      table.insert(t[k], tostring(luaoauth1.oauth_unescape(v)))
+      table.insert(t[k], (luaoauth1.oauth_unescape(v)))
       t
     )
     attributes = authorization_collect\match(header)
