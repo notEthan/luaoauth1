@@ -1,40 +1,6 @@
+luaoauth1 = require('luaoauth1/luaoauth1')
 crypto = require('crypto')
 encode_base64 = ngx and ngx.encode_base64 or require('mime').b64
-oauth_escape = (unescaped) ->
-  string.gsub(unescaped, '([^A-Za-z0-9%-%.%_%~])', (c) -> string.format("%%%02X", string.byte(c)))
-
--- does not convert '+' to ' '
-oauth_unescape = (escaped) ->
-  string.gsub(escaped, "%%(%x%x)", (h) -> string.char(tonumber(h, 16)))
-
-lpeg = require('lpeg')
-lpeg_locale = lpeg.locale()
-parse_authorization = (header) ->
-  authorization_match = lpeg.P({
-    'authorization',
-    oauth_start: lpeg.P('OAuth') * lpeg_locale.space ^ 1,
-    key: lpeg.C(lpeg.R('az', 'AZ', '09', '__')),
-    value: lpeg.P('"') * lpeg.C((lpeg.P(1) - lpeg.P('"'))^0) * lpeg.P('"'),
-    keyvalue: lpeg.Cg(lpeg.V('key') * lpeg.P('=') * lpeg.V('value')),
-    comma: lpeg_locale.space^0 * ',' * lpeg_locale.space^0,
-    authorization: lpeg.V('oauth_start') * (lpeg.V('keyvalue') * lpeg.V('comma'))^0 * (lpeg.V('keyvalue') * lpeg_locale.space^0)^-1
-  }) * -1
-  authorization_collect = lpeg.Cf(lpeg.Ct('') * authorization_match, (t, k, v) ->
-    k = oauth_unescape(k)
-    t[k] = {} if not t[k]
-    table.insert(t[k], oauth_unescape(v))
-    t
-  )
-  attributes = authorization_collect\match(header)
-
-  unless attributes
-    error("Could not parse Authorization header: #{header}")
-
-  duplicates = [k for k, v in pairs(attributes) when #attributes[k] > 1]
-  if #duplicates > 0
-    error("Received duplicate parameters: #{table.concat(duplicates, ', ')}")
-
-  return {k, v[1] for k, v in pairs(attributes)}
 
 -- a request which may be signed with OAuth, generally in order to apply the signature to an outgoing request 
 -- in the Authorization header.
@@ -180,7 +146,7 @@ class SignableRequest
   -- @return [String]
   signature_base: =>
     parts = {@normalized_request_method(), @base_string_uri(), @normalized_request_params_string()}
-    parts = [oauth_escape(part) for part in *parts]
+    parts = [luaoauth1.oauth_escape(part) for part in *parts]
     table.concat(parts, '&')
 
   -- section 3.4.1.2
@@ -211,7 +177,7 @@ class SignableRequest
   --
   -- @return [String]
   normalized_request_params_string: =>
-    escaped = [ [oauth_escape(x) for x in *param] for param in *@normalized_request_params()]
+    escaped = [ [luaoauth1.oauth_escape(x) for x in *param] for param in *@normalized_request_params()]
     @sort_params(escaped)
     table.concat([table.concat(e, '=') for i, e in ipairs(escaped)], '&')
 
@@ -272,7 +238,7 @@ class SignableRequest
           else
             {pair_s, ''}
         if pair
-          table.insert(parsed, [oauth_unescape(string.gsub(v, "+", " ")) for v in *pair])
+          table.insert(parsed, [luaoauth1.oauth_unescape(string.gsub(v, "+", " ")) for v in *pair])
       pos = seppos + 1
       seppos = string.find(data, '[&;]', pos) or data_len + 1
     parsed
@@ -282,7 +248,7 @@ class SignableRequest
   -- @return [String]
   normalized_protocol_params_string: =>
     sorted_params = @sort_params(@signed_protocol_params())
-    escaped_params = ["#{oauth_escape(k)}=\"#{oauth_escape(v)}\"" for k, v in pairs(sorted_params)]
+    escaped_params = ["#{luaoauth1.oauth_escape(k)}=\"#{luaoauth1.oauth_escape(v)}\"" for k, v in pairs(sorted_params)]
     table.concat(escaped_params, ', ')
 
   -- reads the request body, be it String or IO 
@@ -315,7 +281,8 @@ class SignableRequest
   --
   -- @return [String]
   rsa_sha1_signature: =>
-    encode_base64(crypto.sign('sha1', @signature_base(), @attributes['consumer_secret']))
+    pkey = crypto.pkey.from_pem(@attributes['consumer_secret'], true) or error("Invalid RSA private key: #{@attributes['consumer_secret']}")
+    (encode_base64(crypto.sign('sha1', @signature_base(), pkey)))
 
   -- signature, with method HMAC-SHA1. section 3.4.2
   --
@@ -329,7 +296,7 @@ class SignableRequest
   --
   -- @return [String]
   plaintext_signature: =>
-    table.concat([oauth_escape(@attributes[k] or '') for k in *{'consumer_secret', 'token_secret'}], '&')
+    table.concat([luaoauth1.oauth_escape(@attributes[k] or '') for k in *{'consumer_secret', 'token_secret'}], '&')
 
   -- body hash, with a signature method which uses SHA1. oauth request body hash section 3.2
   --
