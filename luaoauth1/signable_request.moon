@@ -293,7 +293,7 @@ class SignableRequest
   hmac_sha1_signature: =>
     -- hmac secret is same as plaintext signature 
     secret = @plaintext_signature()
-    encode_base64(crypto.hmac.digest('sha1', @signature_base(), secret, true))
+    (encode_base64(crypto.hmac.digest('sha1', @signature_base(), secret, true)))
 
   -- signature, with method plaintext. section 3.4.4
   --
@@ -305,7 +305,7 @@ class SignableRequest
   --
   -- @return [String]
   sha1_body_hash: =>
-    encode_base64(crypto.digest('sha1', @body(), true))
+    (encode_base64(crypto.digest('sha1', @body(), true)))
 
   -- sorts params by key and value. the given table is modified in place, as table.sort does. for 
   -- convenience the same table is also returned.
