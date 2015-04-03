@@ -54,7 +54,7 @@ class SignableRequest
       --required[k] = true for k in *{'signature_method', 'consumer_key'}
       required['signature_method'] = true
       required['consumer_key'] = true
-    missing = [k for k, _ in pairs(required) when not @attributes[k]]
+    missing = [k for k, _ in pairs(required) when @attributes[k] == nil]
     error("missing required attributes: #{table.concat(missing, ', ')}") if #missing > 0
     extra = [k for k, _ in pairs(@attributes) when not (required[k] or SignableRequest.PROTOCOL_PARAM_KEYS[k] or SignableRequest.RECOGNIZED_KEYS[k])]
     if #extra > 0
