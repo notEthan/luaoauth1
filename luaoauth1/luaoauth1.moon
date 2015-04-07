@@ -30,11 +30,11 @@ luaoauth1 = {
     attributes = authorization_collect\match(header)
 
     unless attributes
-      error("Could not parse Authorization header: #{header}")
+      error({type: 'luaoauth1.ParseError', errors: {Authorization: {"Could not parse Authorization header: #{header}"}}})
 
     duplicates = [k for k, v in pairs(attributes) when #attributes[k] > 1]
     if #duplicates > 0
-      error("Received duplicate parameters: #{table.concat(duplicates, ', ')}")
+      error({type: 'luaoauth1.ParseError', errors: {Authorization: {"Received duplicate parameters: #{table.concat(duplicates, ', ')}"}}})
 
     return {k, v[1] for k, v in pairs(attributes)}
 }
