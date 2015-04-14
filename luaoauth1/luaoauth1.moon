@@ -14,7 +14,7 @@ luaoauth1 = {
     authorization_match = lpeg.P({
       'authorization',
       space: lpeg_locale.space + lpeg.S("\n ")
-      oauth_start: lpeg.P('OAuth') * lpeg.V('space')^1,
+      oauth_start: lpeg.S('Oo') * lpeg.S('Aa') * lpeg.S('Uu') * lpeg.S('Tt') * lpeg.S('Hh') * lpeg.V('space')^1,
       key: lpeg.C(lpeg.R('az', 'AZ', '09', '__')^1),
       value: lpeg.P('"') * lpeg.C((lpeg.P(1) - lpeg.P('"'))^0) * lpeg.P('"'),
       keyvalue: lpeg.Cg(lpeg.V('key') * lpeg.P('=') * lpeg.V('value')),
