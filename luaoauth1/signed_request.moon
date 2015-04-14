@@ -12,11 +12,13 @@ SignableRequest = require('luaoauth1/signable_request')
 -- `OAuthenticator::SignedRequest.including_config(config_module)`.
 class SignedRequest
   -- attributes of a SignedRequest
-  ATTRIBUTE_KEYS = {k, true for k in *{'request_method', 'uri', 'body', 'media_type', 'authorization'}}
+  ATTRIBUTE_KEYS: {k, true for k in *{'request_method', 'uri', 'body', 'media_type', 'authorization'}}
 
   -- oauth attributes parsed from the request authorization
-  OAUTH_ATTRIBUTE_KEYS = {k, v for k, v in pairs(SignableRequest.PROTOCOL_PARAM_KEYS)}
-  OAUTH_ATTRIBUTE_KEYS[k] = true for k in *{'signature', 'body_hash'}
+  OAUTH_ATTRIBUTE_KEYS: do
+    keys = {k, v for k, v in pairs(SignableRequest.PROTOCOL_PARAM_KEYS)}
+    keys[key] = true for key in *{'signature', 'body_hash'}
+    keys
 
   -- readers for oauth header parameters 
   --OAUTH_ATTRIBUTE_KEYS.each { |key| define_method(key) { oauth_header_params["oauth_#{key}"] } }
@@ -55,19 +57,19 @@ class SignedRequest
   --
   -- @return [nil, Hash<String, Array<String>>] either nil or a hash of errors
   errors: =>
-    return @errors if @errors != nil
-    @errors = ->
+    return @errors_table if @errors_table != nil
+    errors_function = ->
       if @authorization() == nil
         return({Authorization: {"Authorization header is missing"}})
-      elseif not @authorization().find('\S')
+      elseif not @authorization()\find('%S')
         return({Authorization: {"Authorization header is blank"}})
 
-      ok, parse_exception = pcall(@oauth_header_params)
+      ok, parse_exception = pcall(-> @oauth_header_params())
       if not ok
-        if type(err) == 'table' and parse_exception.errors
+        if type(parse_exception) == 'table' and parse_exception.errors
           return parse_exception.errors
         else
-          error(err)
+          error(parse_exception)
 
       errors = {}
       add_error = (key, message) ->
@@ -78,7 +80,7 @@ class SignedRequest
       if not @has_timestamp()
         unless @signature_method() == 'PLAINTEXT'
           add_error('Authorization oauth_timestamp', "Authorization oauth_timestamp is missing")
-      elseif @timestamp()\find('^%s*%d+%s*$')
+      elseif not @timestamp()\find('^%s*%d+%s*$')
         add_error('Authorization oauth_timestamp', "Authorization oauth_timestamp is not an integer - got: #{@timestamp()}")
       else
         timestamp_i = tonumber(@timestamp())
@@ -122,25 +124,30 @@ class SignedRequest
         add_error('Authorization oauth_signature_method', "Authorization oauth_signature_method is missing")
       else
         allowed_signature_method = false
-        allowed_signature_method = true for sm in *@allowed_signature_methods() when @signature_method()\downcase() == sm\lower()
+        allowed_signature_method = true for sm in *@allowed_signature_methods() when @signature_method()\lower() == sm\lower()
         unless allowed_signature_method
           add_error('Authorization oauth_signature_method', "Authorization oauth_signature_method must be one of " ..
-            "#{allowed_signature_methods.join(', ')}; got: #{@signature_method()}")
+            "#{table.concat(@allowed_signature_methods(), ', ')}; got: #{@signature_method()}")
 
       -- signature
       if not @has_signature()
         add_error('Authorization oauth_signature', "Authorization oauth_signature is missing")
 
-      signable_request = SignableRequest.new(@attributes.merge(secrets).merge(authorization: oauth_header_params))
+      sr_attributes = {k, v for k, v in pairs(@attributes)}
+      sr_attributes[k] = v for k, v in pairs(secrets)
+      sr_attributes['authorization'] = @oauth_header_params()
+      signable_request = SignableRequest(sr_attributes)
 
       -- body hash
 
       -- present?
       if @has_body_hash()
         -- allowed?
-        if not signable_request\form_encoded()
+        if not signable_request\is_form_encoded()
           -- applicable?
-          if has_key(SignableRequest.BODY_HASH_METHODS, @signature_method())
+          has_key = false
+          has_key = true for k, _ in pairs(SignableRequest.BODY_HASH_METHODS) when k == @signature_method()
+          if has_key--(SignableRequest.BODY_HASH_METHODS, @signature_method())
             -- correct?
             if @body_hash() == signable_request\body_hash()
               -- all good
@@ -155,7 +162,7 @@ class SignedRequest
           add_error('Authorization oauth_body_hash', "Authorization oauth_body_hash must not be included with form-encoded requests")
       else
         -- allowed?
-        if not signable_request\form_encoded()
+        if not signable_request\is_form_encoded()
           -- required?
           if @body_hash_required()
             add_error('Authorization oauth_body_hash', "Authorization oauth_body_hash is required (on non-form-encoded requests)")
@@ -166,14 +173,14 @@ class SignedRequest
           -- all good
           nil
 
-      return(errors) if #errors > 0
+      return(errors) if next(errors) != nil
 
       -- proceed to check signature
-      unless @signature() == signable_request.signature
-        return({'Authorization oauth_signature': {'Authorization oauth_signature is invalid'}})
+      unless @signature() == signable_request\signature()
+        return({'Authorization oauth_signature': {"Authorization oauth_signature is invalid"}})
 
       if @has_nonce()
-        ok, exception = pcall(@use_nonce)
+        ok, exception = pcall(-> @use_nonce())
         if not ok
           if type(exception) == 'table' and exception.type == 'luaoauth1.NonceUsedError'
             return({'Authorization oauth_nonce': {'Authorization oauth_nonce has already been used'}})
@@ -181,37 +188,45 @@ class SignedRequest
             error(exception)
 
       false
+    @errors_table = errors_function()
+    return @errors_table
 
   -- hash of header params. keys should be a subset of OAUTH_ATTRIBUTE_KEYS.
   oauth_header_params: =>
-    @oauth_header_params = luaoauth1.parse_authorization(@authorization()) unless @oauth_header_params
-    @oauth_header_params
+    @oauth_header_params_table = luaoauth1.parse_authorization(@authorization()) unless @oauth_header_params_table
+    @oauth_header_params_table
 
   -- raise a nice error message for a method that needs to be implemented on a module of config methods 
-  config_method_not_implemented: =>
+  config_method_not_implemented: (config_method) =>
     error("method #{config_method} must be implemented on a table of oauth config methods, which is given " ..
       "to luaoauth1.SignedRequest. Please consult the documentation.")
 
 default_implementations = {
   timestamp_valid_past: =>
     if @config_methods['timestamp_valid_period']
-      @config_methods['timestamp_valid_period'](@)
+      if type(@config_methods['timestamp_valid_period']) == 'function'
+        @config_methods['timestamp_valid_period'](@)
+      else
+        @config_methods['timestamp_valid_period']
     else
       @config_method_not_implemented('timestamp_valid_period')
   timestamp_valid_future: =>
     if @config_methods['timestamp_valid_period']
-      @config_methods['timestamp_valid_period'](@)
+      if type(@config_methods['timestamp_valid_period']) == 'function'
+        @config_methods['timestamp_valid_period'](@)
+      else
+        @config_methods['timestamp_valid_period']
     else
       @config_method_not_implemented('timestamp_valid_period')
   allowed_signature_methods: =>
-    {k for k, v in pairs(SignableRequest.SIGNATURE_METHODS)}
+    return [k for k, v in pairs(SignableRequest.SIGNATURE_METHODS)]
   body_hash_required: =>
     false
 }
-for config_method in *{'timestamp_valid_period', 'timestamp_valid_past', 'timestamp_valid_future', 'allowed_signature_methods', 'consumer_secret', 'token_secret', 'nonce_used', 'use_nonce', 'token_belongs_to_consumer', 'body_hash_required'}
-  SignedRequest[config_method] = =>
+for config_method in *{'timestamp_valid_period', 'timestamp_valid_past', 'timestamp_valid_future', 'allowed_signature_methods', 'consumer_secret', 'token_secret', 'is_nonce_used', 'use_nonce', 'token_belongs_to_consumer', 'body_hash_required'}
+  SignedRequest.__base[config_method] = =>
     if @config_methods[config_method] != nil
-      if type(@config_methods[config_method]) != 'function'
+      if type(@config_methods[config_method]) == 'function'
         @config_methods[config_method](@)
       else
         @config_methods[config_method]
@@ -220,18 +235,29 @@ for config_method in *{'timestamp_valid_period', 'timestamp_valid_past', 'timest
     else
       @config_method_not_implemented(config_method)
 
-for key in *SignedRequest.ATTRIBUTE_KEYS
-  SignedRequest[key] = =>
+for key, _ in pairs(SignedRequest.ATTRIBUTE_KEYS)
+  SignedRequest.__base[key] = =>
     @attributes[key]
-  SignedRequest["has_#{key}"] = =>
-    if type(@attributes[key]) == 'string'
-      if @attributes[key]\find('%S')
+  --SignedRequest.__base["has_#{key}"] = =>
+  --  if type(@attributes[key]) == 'string'
+  --    if @attributes[key]\find('%S')
+  --      true
+  --    else
+  --      false
+  --  else
+  --    @attributes[key] != nil
+
+for key, _ in pairs(SignedRequest.OAUTH_ATTRIBUTE_KEYS)
+  SignedRequest.__base[key] = =>
+    @oauth_header_params()["oauth_#{key}"]
+  SignedRequest.__base["has_#{key}"] = =>
+    value = @oauth_header_params()["oauth_#{key}"]
+    if type(value) == 'string'
+      if value\find('%S')
         true
       else
         false
     else
-      @attributes[key] != nil
+      value != nil
 
-for key in *OAUTH_ATTRIBUTE_KEYS
-  SignedRequest[key] = =>
-    @oauth_header_params()[key]
+SignedRequest
