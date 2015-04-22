@@ -1,4 +1,3 @@
-inspect = require('inspect').inspect
 redis = require('redis')
 redis_connection = redis.connect({host: "127.0.0.1", port: 6379})
 
