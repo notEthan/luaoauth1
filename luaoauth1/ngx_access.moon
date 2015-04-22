@@ -1,5 +1,12 @@
 SignedRequest = require('luaoauth1/signed_request')
 
+if LUAOAUTH1_TEST_MODE
+  -- stub os.time so that the tests can time travel 
+  real_os_time = os.time
+  os.time = ->
+    redis_connection = require('redis').connect({host: "localhost", port: 6379})
+    tonumber(redis_connection\get('luaoauth1:os_time')) or real_os_time()
+
 (config_methods, options = {}) ->
 
   if options.bypass and options.bypass()
