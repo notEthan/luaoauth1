@@ -6,9 +6,14 @@ redis_connection = redis.connect({host: "127.0.0.1", port: 6379})
 local Luaoaauth1TestConfigMethods
 Luaoaauth1TestConfigMethods = {
   is_nonce_used: =>
-    redis_connection\get("luaoauth1:nonces:#{@nonce()}")
+    if redis_connection\get("luaoauth1:nonce_used_false")
+      false
+    else
+      redis_connection\get("luaoauth1:nonces:#{@nonce()}")
 
   use_nonce: =>
+    if redis_connection\get("luaoauth1:nonce_should_not_be_used")
+      error("nonce should not have been used")
     set = redis_connection\setnx("luaoauth1:nonces:#{@nonce()}", 'used')
     if not set
       -- checking the same thing as #nonce_used? lets #nonce_used? be overridden to return false and things still work 
@@ -28,6 +33,12 @@ Luaoaauth1TestConfigMethods = {
 
   token_belongs_to_consumer: =>
     redis_connection\get("luaoauth1:token_consumers:#{@token()}") == @consumer_key()
+
+  body_hash_required: =>
+    if redis_connection\get("luaoauth1:body_hash_required")
+      true
+    else
+      false
 }
 
 TestHelperMethods = require('spec/test_helper_methods')
