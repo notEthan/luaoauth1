@@ -62,9 +62,9 @@ SignedRequest = require('luaoauth1/signed_request')
 
       body['error_message'] = error_message if error_message
 
-      ngx.status = ngx.HTTP_FORBIDDEN
+      ngx.status = ngx.HTTP_UNAUTHORIZED
       ngx.say(require('cjson').encode(body))
-      ngx.exit(ngx.HTTP_FORBIDDEN)
+      ngx.exit(ngx.HTTP_UNAUTHORIZED)
     else
       -- log authenticated request TODO
       ngx.req.set_header("oauth.consumer_key", signed_request\consumer_key())
