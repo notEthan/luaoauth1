@@ -1,4 +1,4 @@
-luaoauth1 = require('luaoauth1/luaoauth1')
+luaoauth1 = require('luaoauth1')
 crypto = require('crypto')
 encode_base64 = ngx and ngx.encode_base64 or require('mime').b64
 

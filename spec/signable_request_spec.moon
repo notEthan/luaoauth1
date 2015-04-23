@@ -1,5 +1,5 @@
-luaoauth1 = require('luaoauth1/luaoauth1')
-SignableRequest = require('luaoauth1/signable_request')
+luaoauth1 = require('luaoauth1')
+SignableRequest = require('luaoauth1.signable_request')
 
 merge = (a, b) ->
   out = {}

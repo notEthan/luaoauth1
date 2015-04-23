@@ -1,5 +1,5 @@
-luaoauth1 = require('luaoauth1/luaoauth1')
-SignableRequest = require('luaoauth1/signable_request')
+luaoauth1 = require('luaoauth1')
+SignableRequest = require('luaoauth1.signable_request')
 
 -- this class represents an OAuth signed request. its primary user-facing method is {#errors}, which returns 
 -- nil if the request is valid and authentic, or a helpful object of error messages describing what was 

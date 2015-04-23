@@ -1,7 +1,7 @@
 spec_server = require("lapis.spec.server")
 request = spec_server.request
-luaoauth1 = require('luaoauth1/luaoauth1')
-SignableRequest = require('luaoauth1/signable_request')
+luaoauth1 = require('luaoauth1')
+SignableRequest = require('luaoauth1.signable_request')
 redis = require('redis')
 redis_connection = redis.connect({host: "127.0.0.1", port: 6379})
 local app_port

@@ -1,4 +1,4 @@
-SignedRequest = require('luaoauth1/signed_request')
+SignedRequest = require('luaoauth1.signed_request')
 
 if LUAOAUTH1_TEST_MODE
   -- stub os.time so that the tests can time travel 
