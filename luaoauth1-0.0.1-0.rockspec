@@ -2,7 +2,7 @@ package = 'luaoauth1'
 version = '0.0.1-0'
 source = {
   url = 'git://github.com/notEthan/luaoauth1.git',
-  branch = 'release-v0.0.1'
+  tag = 'v0.0.1'
 }
 description = {
   summary = 'OAuth 1.0 in lua',
