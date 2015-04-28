@@ -16,7 +16,6 @@ if LUAOAUTH1_TEST_MODE
   else
     local authorization
     local content_type
-    inspect = require('inspect').inspect
 
     for k, v in pairs(ngx.req.get_headers())
       if k\lower() == 'authorization'
@@ -48,7 +47,7 @@ if LUAOAUTH1_TEST_MODE
     errors = signed_request\errors()
     if errors
       -- log unauthenticated request TODO
-      ngx.log(ngx.WARN, require('inspect').inspect(errors))
+      ngx.log(ngx.WARN, tostring(errors))
 
       realm = options['realm'] or ''
       ngx.header["WWW-Authenticate"] = "OAuth realm=\"#{realm}\""

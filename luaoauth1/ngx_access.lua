@@ -20,7 +20,6 @@ return function(config_methods, options)
   else
     local authorization
     local content_type
-    local inspect = require('inspect').inspect
     for k, v in pairs(ngx.req.get_headers()) do
       if k:lower() == 'authorization' then
         authorization = v
@@ -55,7 +54,7 @@ return function(config_methods, options)
     }, config_methods)
     local errors = signed_request:errors()
     if errors then
-      ngx.log(ngx.WARN, require('inspect').inspect(errors))
+      ngx.log(ngx.WARN, tostring(errors))
       local realm = options['realm'] or ''
       ngx.header["WWW-Authenticate"] = "OAuth realm=\"" .. tostring(realm) .. "\""
       ngx.header["Content-Type"] = "application/json"
