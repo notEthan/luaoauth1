@@ -67,11 +67,11 @@ class SignableRequest
         error("authorization must be a table")
 
       -- if authorization is specified, protocol params should not be specified in the regular attributes 
-      given_protocol_params = {k, v for k, v in ipairs(@attributes) when SignableRequest.PROTOCOL_PARAM_KEYS[k] and v}
+      given_protocol_params = [k for k, v in pairs(@attributes) when SignableRequest.PROTOCOL_PARAM_KEYS[k] and v]
       if #given_protocol_params > 0
         error("an existing authorization was given, but protocol parameters were also " ..
           "given. protocol parameters should not be specified when verifying an existing authorization. " ..
-          "given protocol parameters were: #{given_protocol_params.inspect}")
+          "given protocol parameters were: #{table.concat(given_protocol_params, ', ')}")
     else
       -- defaults
       defaults = {

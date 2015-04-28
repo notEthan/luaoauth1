@@ -436,16 +436,18 @@ do
         end
         local given_protocol_params
         do
-          local _tbl_0 = { }
-          for k, v in ipairs(self.attributes) do
+          local _accum_0 = { }
+          local _len_0 = 1
+          for k, v in pairs(self.attributes) do
             if SignableRequest.PROTOCOL_PARAM_KEYS[k] and v then
-              _tbl_0[k] = v
+              _accum_0[_len_0] = k
+              _len_0 = _len_0 + 1
             end
           end
-          given_protocol_params = _tbl_0
+          given_protocol_params = _accum_0
         end
         if #given_protocol_params > 0 then
-          return error("an existing authorization was given, but protocol parameters were also " .. "given. protocol parameters should not be specified when verifying an existing authorization. " .. "given protocol parameters were: " .. tostring(given_protocol_params.inspect))
+          return error("an existing authorization was given, but protocol parameters were also " .. "given. protocol parameters should not be specified when verifying an existing authorization. " .. "given protocol parameters were: " .. tostring(table.concat(given_protocol_params, ', ')))
         end
       else
         local defaults = {
