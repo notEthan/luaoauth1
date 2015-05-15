@@ -1,8 +1,8 @@
 package = 'luaoauth1'
-version = '0.0.2-0'
+version = '0.1.0-0'
 source = {
   url = 'git://github.com/notEthan/luaoauth1.git',
-  tag = 'v0.0.2'
+  tag = 'v0.1.0'
 }
 description = {
   summary = 'OAuth 1.0 in lua',
@@ -22,6 +22,7 @@ build = {
     ['luaoauth1.signable_request'] = 'luaoauth1/signable_request.lua',
     ['luaoauth1.signed_request'] = 'luaoauth1/signed_request.lua',
     ['luaoauth1.ngx_access'] = 'luaoauth1/ngx_access.lua',
+    ['luaoauth1.socket.http'] = 'luaoauth1/socket/http.lua',
   },
   install = {
   }
