@@ -13,8 +13,11 @@ request = function(oauth, orig_request)
     end
     request = _tbl_0
   end
-  if not (request.headers) then
-    request.headers = { }
+  request.headers = { }
+  if orig_request.headers then
+    for k, v in pairs(orig_request.headers) do
+      request.headers[k] = v
+    end
   end
   local socket_url = socket.url.parse(request.url)
   local request_uri
@@ -74,6 +77,7 @@ request = function(oauth, orig_request)
   end
   local loauath1_signable_request = SignableRequest(attrs)
   request.headers['authorization'] = loauath1_signable_request:authorization()
+  request.headers['host'] = string.gsub(socket_url.authority, "^.-@", "")
   return socket.http.request(request)
 end
 return {

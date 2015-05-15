@@ -7,7 +7,10 @@ luaoauth1 = require('luaoauth1')
 
 request = (oauth, orig_request) ->
   request = {k, v for k, v in pairs(orig_request)}
-  request.headers = {} unless request.headers
+  request.headers = {}
+  if orig_request.headers
+    for k, v in pairs(orig_request.headers)
+      request.headers[k] = v
   socket_url = socket.url.parse(request.url)
   request_uri = if socket_url.query
     socket_url.path .. '?' .. socket_url.query
@@ -46,6 +49,8 @@ request = (oauth, orig_request) ->
   attrs[key] = val for key, val in pairs(oauth)
   loauath1_signable_request = SignableRequest(attrs)
   request.headers['authorization'] = loauath1_signable_request\authorization()
+  -- work around broken host header in socket.http
+  request.headers['host'] = string.gsub(socket_url.authority, "^.-@", "")
   return socket.http.request(request)
 
 return {:request}
