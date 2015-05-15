@@ -10,6 +10,16 @@ luaoauth1 = {
   oauth_unescape: (escaped) ->
     string.gsub(escaped, "%%(%x%x)", (h) -> string.char(tonumber(h, 16)))
 
+  media_type: (content_type) ->
+    if type(content_type) == 'string'
+      pos = content_type\find(';')
+      if pos
+        content_type\sub(1, pos - 1)
+      else
+        content_type
+    else
+      false
+
   parse_authorization: (header) ->
     authorization_match = lpeg.P({
       'authorization',

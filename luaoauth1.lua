@@ -12,6 +12,18 @@ luaoauth1 = {
       return string.char(tonumber(h, 16))
     end)
   end,
+  media_type = function(content_type)
+    if type(content_type) == 'string' then
+      local pos = content_type:find(';')
+      if pos then
+        return content_type:sub(1, pos - 1)
+      else
+        return content_type
+      end
+    else
+      return false
+    end
+  end,
   parse_authorization = function(header)
     local authorization_match = lpeg.P({
       'authorization',

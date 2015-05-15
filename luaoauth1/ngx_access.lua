@@ -1,4 +1,5 @@
 local SignedRequest = require('luaoauth1.signed_request')
+local luaoauth1 = require('luaoauth1')
 if LUAOAUTH1_TEST_MODE then
   local real_os_time = os.time
   os.time = function()
@@ -28,17 +29,6 @@ return function(config_methods, options)
         content_type = v
       end
     end
-    local media_type
-    if type(content_type) == 'string' then
-      local pos = content_type:find(';')
-      if pos then
-        media_type = content_type:sub(1, pos - 1)
-      else
-        media_type = content_type
-      end
-    else
-      media_type = false
-    end
     ngx.req.read_body()
     local signed_request = SignedRequest({
       request_method = ngx.req.get_method(),
@@ -48,7 +38,7 @@ return function(config_methods, options)
         port = ngx.var.server_port,
         request_uri = ngx.var.request_uri
       },
-      media_type = media_type,
+      media_type = luaoauth1.media_type(content_type),
       body = ngx.req.get_body_data() or false,
       authorization = authorization
     }, config_methods)
