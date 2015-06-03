@@ -1,6 +1,16 @@
 local luaoauth1 = require('luaoauth1')
 local crypto = require('crypto')
 local encode_base64 = ngx and ngx.encode_base64 or require('mime').b64
+local seed = 0
+local bytes = io.open('/dev/urandom'):read(4)
+for i = 1, bytes:len() do
+  local byte = bytes:byte(i)
+  for j = 1, (i - 1) * 8 do
+    byte = byte * 2
+  end
+  seed = seed + byte
+end
+math.randomseed(seed)
 local SignableRequest
 do
   local _base_0 = {

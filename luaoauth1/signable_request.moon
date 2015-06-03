@@ -2,6 +2,20 @@ luaoauth1 = require('luaoauth1')
 crypto = require('crypto')
 encode_base64 = ngx and ngx.encode_base64 or require('mime').b64
 
+-- math.random seems to be seeded with os.time which has 1-second resolution. 
+-- this leads to repeated nonces when processes start within a second of each other. not good.
+-- seed with better randomness from urandom instead (32 bits - apparently larger will cause 
+-- the seed to be truncated and all randomness lost - see 
+-- https://github.com/Tieske/uuid/blob/version_0.2.0/src/uuid.lua#L140-L145 ).
+seed = 0
+bytes = io.open('/dev/urandom')\read(4)
+for i = 1, bytes\len() do
+  byte = bytes\byte(i)
+  for j = 1, (i - 1) * 8 do
+    byte = byte * 2
+  seed = seed + byte
+math.randomseed(seed)
+
 -- a request which may be signed with OAuth, generally in order to apply the signature to an outgoing request 
 -- in the Authorization header.
 --
