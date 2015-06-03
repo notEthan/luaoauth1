@@ -6,6 +6,9 @@ local SignableRequest = require('luaoauth1.signable_request')
 local luaoauth1 = require('luaoauth1')
 local request
 request = function(oauth, orig_request)
+  if not (type(oauth) == 'table' and type(orig_request) == 'table') then
+    error("arguments must be oauth params (a table) and request params (a table). got: " .. tostring(oauth) .. " (" .. tostring(type(oauth)) .. "), " .. tostring(orig_request) .. ", (" .. tostring(type(orig_request)) .. ")")
+  end
   do
     local _tbl_0 = { }
     for k, v in pairs(orig_request) do

@@ -6,6 +6,9 @@ SignableRequest = require('luaoauth1.signable_request')
 luaoauth1 = require('luaoauth1')
 
 request = (oauth, orig_request) ->
+  unless type(oauth) == 'table' and type(orig_request) == 'table'
+    error("arguments must be oauth params (a table) and request params (a table). got: #{oauth} (#{type(oauth)}), #{orig_request}, (#{type(orig_request)})")
+
   request = {k, v for k, v in pairs(orig_request)}
   request.headers = {}
   if orig_request.headers
