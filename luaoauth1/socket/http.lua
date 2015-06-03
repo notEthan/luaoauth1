@@ -38,8 +38,7 @@ request = function(oauth, orig_request)
     end)()),
     request_uri = request_uri
   }
-  local media_type
-  media_type = false
+  local media_type = false
   for k, v in pairs(request.headers) do
     if k:lower() == 'content-type' then
       media_type = luaoauth1.media_type(v)
@@ -58,8 +57,7 @@ request = function(oauth, orig_request)
       end
     end
   end
-  local body
-  body = false
+  local body = false
   if request.source then
     local body_sink, body_table = ltn12.sink.table()
     ltn12.pump.all(request.source, body_sink)

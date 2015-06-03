@@ -22,7 +22,7 @@ request = (oauth, orig_request) ->
     port: socket_url.port or (if socket_url.scheme == 'http' then 80 elseif socket_url.scheme == 'https' then 443),
     request_uri: request_uri,
   }
-  local media_type
+
   media_type = false
   for k, v in pairs(request.headers)
     if k\lower() == 'content-type'
@@ -33,7 +33,7 @@ request = (oauth, orig_request) ->
     for i, v in pairs({'post', 'put', 'patch', 'options'})
       if v == request_method_lower
         media_type = 'application/x-www-form-urlencoded' 
-  local body
+
   body = false
   if request.source
     body_sink, body_table = ltn12.sink.table()
