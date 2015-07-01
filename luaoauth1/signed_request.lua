@@ -198,19 +198,20 @@ do
             }
           end)
           if not ok then
-            if type(err.exception) == 'table' and err.exception.type == 'luaoauth1.NonceUsedError' then
+            local exception = err.exception
+            if type(exception) == 'table' and exception.type == 'luaoauth1.NonceUsedError' then
               return ({
                 ['Authorization oauth_nonce'] = {
                   'Authorization oauth_nonce has already been used'
                 }
               })
             else
-              if type(err.exception) == 'string' then
-                err.exception = err.exception .. "\noriginal traceback:\n" .. err.traceback
-              elseif type(err.exception) == 'table' then
-                err.exception.original_traceback = err.traceback
+              if type(exception) == 'string' then
+                exception = exception .. "\noriginal traceback:\n" .. err.traceback
+              elseif type(exception) == 'table' then
+                exception.original_traceback = err.traceback
               end
-              error(err.exception)
+              error(exception)
             end
           end
         end

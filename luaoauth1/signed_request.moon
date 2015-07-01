@@ -184,15 +184,16 @@ class SignedRequest
           return {exception: exception, traceback: debug.traceback()}
         )
         if not ok
-          if type(err.exception) == 'table' and err.exception.type == 'luaoauth1.NonceUsedError'
+          exception = err.exception
+          if type(exception) == 'table' and exception.type == 'luaoauth1.NonceUsedError'
             return({'Authorization oauth_nonce': {'Authorization oauth_nonce has already been used'}})
           else
             -- append the original exception
-            if type(err.exception) == 'string'
-              err.exception = err.exception .. "\noriginal traceback:\n" .. err.traceback
-            elseif type(err.exception) == 'table'
-              err.exception.original_traceback = err.traceback
-            error(err.exception)
+            if type(exception) == 'string'
+              exception = exception .. "\noriginal traceback:\n" .. err.traceback
+            elseif type(exception) == 'table'
+              exception.original_traceback = err.traceback
+            error(exception)
 
       false
     @errors_table = errors_function()
