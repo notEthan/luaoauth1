@@ -188,35 +188,29 @@ do
           })
         end
         if self:has_nonce() then
-          local exception
-          ok, exception = xpcall((function()
+          local err
+          ok, err = xpcall((function()
             return self:use_nonce()
           end), function(exception)
-            if type(exception) == 'table' and exception.type == 'luaoauth1.NonceUsedError' then
-              return exception
-            else
-              return {
-                exception = exception,
-                traceback = debug.traceback()
-              }
-            end
+            return {
+              exception = exception,
+              traceback = debug.traceback()
+            }
           end)
           if not ok then
-            if type(exception) == 'table' and exception.type == 'luaoauth1.NonceUsedError' then
+            if type(err.exception) == 'table' and err.exception.type == 'luaoauth1.NonceUsedError' then
               return ({
                 ['Authorization oauth_nonce'] = {
                   'Authorization oauth_nonce has already been used'
                 }
               })
             else
-              if type(exception.exception) == 'string' then
-                error(exception.exception .. "\noriginal traceback:\n" .. exception.traceback)
-              elseif type(exception.exception) == 'table' then
-                exception.exception.original_traceback = exception.traceback
-                error(exception.exception)
-              else
-                error(exception.exception)
+              if type(err.exception) == 'string' then
+                err.exception = err.exception .. "\noriginal traceback:\n" .. err.traceback
+              elseif type(err.exception) == 'table' then
+                err.exception.original_traceback = err.traceback
               end
+              error(err.exception)
             end
           end
         end
