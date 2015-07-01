@@ -39,6 +39,9 @@ if LUAOAUTH1_TEST_MODE
 
     errors = signed_request\errors()
     if errors
+      if config_methods.on_error
+        config_methods.on_error(signed_request)
+
       -- log unauthenticated request TODO
       ngx.log(ngx.WARN, tostring(errors))
 
@@ -65,6 +68,9 @@ if LUAOAUTH1_TEST_MODE
       ngx.say(require('cjson').encode(body))
       ngx.exit(ngx.HTTP_UNAUTHORIZED)
     else
+      if config_methods.on_success
+        config_methods.on_success(signed_request)
+
       -- log authenticated request TODO
       ngx.req.set_header("oauth.consumer_key", signed_request\consumer_key())
       ngx.req.set_header("oauth.token", signed_request\token())

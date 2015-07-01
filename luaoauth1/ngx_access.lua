@@ -44,6 +44,9 @@ return function(config_methods, options)
     }, config_methods)
     local errors = signed_request:errors()
     if errors then
+      if config_methods.on_error then
+        config_methods.on_error(signed_request)
+      end
       ngx.log(ngx.WARN, tostring(errors))
       local realm = options['realm'] or ''
       ngx.header["WWW-Authenticate"] = "OAuth realm=\"" .. tostring(realm) .. "\""
@@ -88,6 +91,9 @@ return function(config_methods, options)
       ngx.say(require('cjson').encode(body))
       return ngx.exit(ngx.HTTP_UNAUTHORIZED)
     else
+      if config_methods.on_success then
+        config_methods.on_success(signed_request)
+      end
       ngx.req.set_header("oauth.consumer_key", signed_request:consumer_key())
       ngx.req.set_header("oauth.token", signed_request:token())
       return ngx.req.set_header("oauth.authenticated", 'true')
