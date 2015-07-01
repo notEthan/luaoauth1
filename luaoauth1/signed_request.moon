@@ -180,12 +180,24 @@ class SignedRequest
         return({'Authorization oauth_signature': {"Authorization oauth_signature is invalid"}})
 
       if @has_nonce()
-        ok, exception = pcall(-> @use_nonce())
+        ok, exception = xpcall((-> @use_nonce()), (exception) ->
+          if type(exception) == 'table' and exception.type == 'luaoauth1.NonceUsedError'
+            return exception
+          else
+            return {exception: exception, traceback: debug.traceback()}
+        )
         if not ok
           if type(exception) == 'table' and exception.type == 'luaoauth1.NonceUsedError'
             return({'Authorization oauth_nonce': {'Authorization oauth_nonce has already been used'}})
           else
-            error(exception)
+            -- append the original exception
+            if type(exception.exception) == 'string'
+              error(exception.exception .. "\noriginal traceback:\n" .. exception.traceback)
+            elseif type(exception.exception) == 'table'
+              exception.exception.original_traceback = exception.traceback
+              error(exception.exception)
+            else
+              error(exception.exception)
 
       false
     @errors_table = errors_function()

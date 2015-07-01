@@ -189,8 +189,17 @@ do
         end
         if self:has_nonce() then
           local exception
-          ok, exception = pcall(function()
+          ok, exception = xpcall((function()
             return self:use_nonce()
+          end), function(exception)
+            if type(exception) == 'table' and exception.type == 'luaoauth1.NonceUsedError' then
+              return exception
+            else
+              return {
+                exception = exception,
+                traceback = debug.traceback()
+              }
+            end
           end)
           if not ok then
             if type(exception) == 'table' and exception.type == 'luaoauth1.NonceUsedError' then
@@ -200,7 +209,14 @@ do
                 }
               })
             else
-              error(exception)
+              if type(exception.exception) == 'string' then
+                error(exception.exception .. "\noriginal traceback:\n" .. exception.traceback)
+              elseif type(exception.exception) == 'table' then
+                exception.exception.original_traceback = exception.traceback
+                error(exception.exception)
+              else
+                error(exception.exception)
+              end
             end
           end
         end
