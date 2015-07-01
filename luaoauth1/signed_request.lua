@@ -199,7 +199,7 @@ do
           end)
           if not ok then
             local exception = err.exception
-            if type(exception) == 'table' and exception.type == 'luaoauth1.NonceUsedError' then
+            if exception == 'luaoauth1.NonceUsedError' or (type(exception) == 'table' and exception.type == 'luaoauth1.NonceUsedError') then
               return ({
                 ['Authorization oauth_nonce'] = {
                   'Authorization oauth_nonce has already been used'
