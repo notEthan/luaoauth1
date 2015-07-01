@@ -186,7 +186,10 @@ class SignedRequest
         if not ok
           exception = err.exception
           if exception == 'luaoauth1.NonceUsedError' or (type(exception) == 'table' and exception.type == 'luaoauth1.NonceUsedError')
-            return({'Authorization oauth_nonce': {'Authorization oauth_nonce has already been used'}})
+            message = 'Authorization oauth_nonce has already been used'
+            if type(exception) == 'table' and exception.public_message
+              message = message .. "\n" .. exception.public_message
+            return({'Authorization oauth_nonce': {message}})
           else
             -- append the original exception
             if type(exception) == 'string'

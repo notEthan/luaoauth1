@@ -200,9 +200,13 @@ do
           if not ok then
             local exception = err.exception
             if exception == 'luaoauth1.NonceUsedError' or (type(exception) == 'table' and exception.type == 'luaoauth1.NonceUsedError') then
+              local message = 'Authorization oauth_nonce has already been used'
+              if type(exception) == 'table' and exception.public_message then
+                message = message .. "\n" .. exception.public_message
+              end
               return ({
                 ['Authorization oauth_nonce'] = {
-                  'Authorization oauth_nonce has already been used'
+                  message
                 }
               })
             else
