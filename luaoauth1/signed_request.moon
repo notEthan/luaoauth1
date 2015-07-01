@@ -208,23 +208,18 @@ class SignedRequest
     error("method #{config_method} must be implemented on a table of oauth config methods, which is given " ..
       "to luaoauth1.SignedRequest. Please consult the documentation.")
 
+default_timestamp_valid_period = =>
+  if @config_methods['timestamp_valid_period']
+    if type(@config_methods['timestamp_valid_period']) == 'function'
+      @config_methods['timestamp_valid_period'](@)
+    else
+      @config_methods['timestamp_valid_period']
+  else
+    @config_method_not_implemented('timestamp_valid_period')
+
 default_implementations = {
-  timestamp_valid_past: =>
-    if @config_methods['timestamp_valid_period']
-      if type(@config_methods['timestamp_valid_period']) == 'function'
-        @config_methods['timestamp_valid_period'](@)
-      else
-        @config_methods['timestamp_valid_period']
-    else
-      @config_method_not_implemented('timestamp_valid_period')
-  timestamp_valid_future: =>
-    if @config_methods['timestamp_valid_period']
-      if type(@config_methods['timestamp_valid_period']) == 'function'
-        @config_methods['timestamp_valid_period'](@)
-      else
-        @config_methods['timestamp_valid_period']
-    else
-      @config_method_not_implemented('timestamp_valid_period')
+  timestamp_valid_past: default_timestamp_valid_period
+  timestamp_valid_future: default_timestamp_valid_period
   allowed_signature_methods: =>
     return [k for k, v in pairs(SignableRequest.SIGNATURE_METHODS)]
   body_hash_required: =>

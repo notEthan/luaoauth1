@@ -275,29 +275,21 @@ do
   _base_0.__class = _class_0
   SignedRequest = _class_0
 end
+local default_timestamp_valid_period
+default_timestamp_valid_period = function(self)
+  if self.config_methods['timestamp_valid_period'] then
+    if type(self.config_methods['timestamp_valid_period']) == 'function' then
+      return self.config_methods['timestamp_valid_period'](self)
+    else
+      return self.config_methods['timestamp_valid_period']
+    end
+  else
+    return self:config_method_not_implemented('timestamp_valid_period')
+  end
+end
 local default_implementations = {
-  timestamp_valid_past = function(self)
-    if self.config_methods['timestamp_valid_period'] then
-      if type(self.config_methods['timestamp_valid_period']) == 'function' then
-        return self.config_methods['timestamp_valid_period'](self)
-      else
-        return self.config_methods['timestamp_valid_period']
-      end
-    else
-      return self:config_method_not_implemented('timestamp_valid_period')
-    end
-  end,
-  timestamp_valid_future = function(self)
-    if self.config_methods['timestamp_valid_period'] then
-      if type(self.config_methods['timestamp_valid_period']) == 'function' then
-        return self.config_methods['timestamp_valid_period'](self)
-      else
-        return self.config_methods['timestamp_valid_period']
-      end
-    else
-      return self:config_method_not_implemented('timestamp_valid_period')
-    end
-  end,
+  timestamp_valid_past = default_timestamp_valid_period,
+  timestamp_valid_future = default_timestamp_valid_period,
   allowed_signature_methods = function(self)
     local _accum_0 = { }
     local _len_0 = 1
