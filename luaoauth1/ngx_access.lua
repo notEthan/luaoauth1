@@ -21,6 +21,8 @@ return function(config_methods, options)
   else
     local authorization
     local content_type
+    local scheme
+    scheme = ngx.var.scheme
     for k, v in pairs(ngx.req.get_headers()) do
       if k:lower() == 'authorization' then
         authorization = v
@@ -28,12 +30,18 @@ return function(config_methods, options)
       if k:lower() == 'content-type' then
         content_type = v
       end
+      if (k:lower() == 'https' or k:lower() == 'http_x_forwarded_ssl') and v:lower() == 'on' then
+        scheme = 'https'
+      end
+      if k:lower() == 'http_x_forwarded_scheme' or k:lower() == 'http_x_forwarded_proto' then
+        scheme = v
+      end
     end
     ngx.req.read_body()
     local signed_request = SignedRequest({
       request_method = ngx.req.get_method(),
       uri = {
-        scheme = ngx.var.scheme,
+        scheme = scheme,
         host = ngx.var.host,
         port = ngx.var.server_port,
         request_uri = ngx.var.request_uri

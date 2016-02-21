@@ -17,17 +17,22 @@ if LUAOAUTH1_TEST_MODE
   else
     local authorization
     local content_type
-
+    local scheme
+    scheme = ngx.var.scheme
     for k, v in pairs(ngx.req.get_headers())
       if k\lower() == 'authorization'
         authorization = v
       if k\lower() == 'content-type'
         content_type = v
+      if (k\lower() == 'https' or k\lower() == 'http_x_forwarded_ssl') and v\lower() == 'on'
+        scheme = 'https'
+      if k\lower() == 'http_x_forwarded_scheme' or k\lower() == 'http_x_forwarded_proto'
+        scheme = v
     ngx.req.read_body()
     signed_request = SignedRequest({
       request_method: ngx.req.get_method(), -- or ngx.var.request_method ?
       uri: {
-        scheme: ngx.var.scheme,
+        scheme: scheme,
         host: ngx.var.host,
         port: ngx.var.server_port,
         request_uri: ngx.var.request_uri,

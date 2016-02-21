@@ -20,5 +20,7 @@ TestHelperMethods = {
     TestHelperMethods.token_hash()['token']
   token_secret: ->
     TestHelperMethods.token_hash()['secret']
+  on_failure: ->
+    redis_connection\set("luaoauth1:token_secrets:#{hash['token']}", hash['secret'])
 }
 return TestHelperMethods
