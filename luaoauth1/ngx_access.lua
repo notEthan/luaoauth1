@@ -32,13 +32,13 @@ return function(config_methods, options)
       if k:lower() == 'content-type' then
         content_type = v
       end
-      if (k:lower() == 'https' or k:lower() == 'http_x_forwarded_ssl') and v:lower() == 'on' then
+      if (k:lower() == 'https' or k:lower() == 'x-forwarded-ssl') and v:lower() == 'on' then
         scheme = 'https'
       end
-      if k:lower() == 'http_x_forwarded_scheme' or k:lower() == 'http_x_forwarded_proto' then
+      if k:lower() == 'x-forwarded-scheme' or k:lower() == 'x-forwarded-proto' then
         scheme = v
       end
-      if k:lower() == 'http-x-forwarded-port' then
+      if k:lower() == 'x-forwarded-port' then
         port = v
       end
     end

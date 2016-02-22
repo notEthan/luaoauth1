@@ -26,11 +26,11 @@ if LUAOAUTH1_TEST_MODE
         authorization = v
       if k\lower() == 'content-type'
         content_type = v
-      if (k\lower() == 'https' or k\lower() == 'http_x_forwarded_ssl') and v\lower() == 'on'
+      if (k\lower() == 'https' or k\lower() == 'x-forwarded-ssl') and v\lower() == 'on'
         scheme = 'https'
-      if k\lower() == 'http_x_forwarded_scheme' or k\lower() == 'http_x_forwarded_proto'
+      if k\lower() == 'x-forwarded-scheme' or k\lower() == 'x-forwarded-proto'
         scheme = v
-      if k\lower() == 'http-x-forwarded-port'
+      if k\lower() == 'x-forwarded-port'
         port = v
     ngx.req.read_body()
     signed_request = SignedRequest({
