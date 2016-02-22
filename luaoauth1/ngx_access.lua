@@ -22,7 +22,9 @@ return function(config_methods, options)
     local authorization
     local content_type
     local scheme
+    local port
     scheme = ngx.var.scheme
+    port = ngx.var.server_port
     for k, v in pairs(ngx.req.get_headers()) do
       if k:lower() == 'authorization' then
         authorization = v
@@ -36,6 +38,9 @@ return function(config_methods, options)
       if k:lower() == 'http_x_forwarded_scheme' or k:lower() == 'http_x_forwarded_proto' then
         scheme = v
       end
+      if k:lower() == 'http-x-forwarded-port' then
+        port = v
+      end
     end
     ngx.req.read_body()
     local signed_request = SignedRequest({
@@ -43,7 +48,7 @@ return function(config_methods, options)
       uri = {
         scheme = scheme,
         host = ngx.var.host,
-        port = ngx.var.server_port,
+        port = port,
         request_uri = ngx.var.request_uri
       },
       media_type = luaoauth1.media_type(content_type),
