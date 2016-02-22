@@ -34,6 +34,9 @@ TestHelperMethods = {
   end,
   token_secret = function()
     return TestHelperMethods.token_hash()['secret']
+  end,
+  on_failure = function()
+    return redis_connection:set("luaoauth1:token_secrets:" .. tostring(hash['token']), hash['secret'])
   end
 }
 return TestHelperMethods
