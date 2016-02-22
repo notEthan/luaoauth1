@@ -18,23 +18,26 @@ if LUAOAUTH1_TEST_MODE
     local authorization
     local content_type
     local scheme
+    local port
     scheme = ngx.var.scheme
     for k, v in pairs(ngx.req.get_headers())
       if k\lower() == 'authorization'
         authorization = v
       if k\lower() == 'content-type'
         content_type = v
-      if (k\lower() == 'https' or k\lower() == 'http_x_forwarded_ssl') and v\lower() == 'on'
+      if (k\lower() == 'https' or k\lower() == 'x-forwarded-ssl') and v\lower() == 'on'
         scheme = 'https'
-      if k\lower() == 'http_x_forwarded_scheme' or k\lower() == 'http_x_forwarded_proto'
+      if k\lower() == 'x-forwarded-scheme' or k\lower() == 'x-forwarded-proto'
         scheme = v
+      if k\lower() == 'x-forwarded-port'
+        port = v
     ngx.req.read_body()
     signed_request = SignedRequest({
       request_method: ngx.req.get_method(), -- or ngx.var.request_method ?
       uri: {
         scheme: scheme,
         host: ngx.var.host,
-        port: ngx.var.server_port,
+        port: port,
         request_uri: ngx.var.request_uri,
       },
       media_type: luaoauth1.media_type(content_type),
