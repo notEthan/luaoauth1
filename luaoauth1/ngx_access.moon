@@ -29,8 +29,8 @@ if LUAOAUTH1_TEST_MODE
         scheme = 'https'
       if k\lower() == 'x-forwarded-scheme' or k\lower() == 'x-forwarded-proto'
         scheme = v
-	    if k\lower() == 'x-forwarded-port'
-	      port = v
+      if k\lower() == 'x-forwarded-port'
+        port = v
     ngx.req.read_body()
     signed_request = SignedRequest({
       request_method: ngx.req.get_method(), -- or ngx.var.request_method ?
